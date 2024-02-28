@@ -155,6 +155,7 @@ class Beneficiary:
         # save/update yaml file 
         # check against yaml file 
         # return dict summary of beneficiary profile 
+        # Print non-default params 
      
     def get_family(self) -> dict: 
         """List the family member information"""   
@@ -201,6 +202,11 @@ class Beneficiary:
 
         return benefits_programs
     
+    def non_default(self): 
+        """Get non-default parameters in the Profile"""
+        non_default = {k:v for k,v in self._Profile.items() if v != Beneficiary.default_schema[k]}
+        return non_default
+
     
     @property
     def Profile(self):
