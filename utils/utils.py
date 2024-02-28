@@ -113,8 +113,6 @@ def create_custom_ticks_labels() -> tuple:
     ## TO DO: let customize salary ranges 
     ## Create custom ticks for yearly and hourly wages 
     custom_ticks = list(range(30000, 100001, 10000)) 
-    if n is not None:
-        custom_ticks = custom_ticks[n]
     hourly_wages = [get_hourly_wage(x) for x in custom_ticks]
 
     custom_labels = [f"${x[0]:,}\n{x[1]}" for x in zip(custom_ticks, hourly_wages)]
@@ -139,6 +137,7 @@ def plot_ben_cliff(x, y,
     plt.legend()
 
     ## Create custom ticks for yearly and hourly wages 
+    # read from the current config file 
     custom_ticks = list(range(30000, 100001, 10000)) 
     def get_hourly_wage(x):
         # Assuming you work a 40 hour week, 52 weeks in a year 
@@ -299,3 +298,7 @@ def read_output(project_name:str) -> pd.DataFrame:
 def print_df(df):
     for line in df.to_csv(index=False).splitlines(): 
         print(line.replace(',',', '))
+
+
+def create_ben_profile(): 
+    return 
