@@ -1,7 +1,12 @@
 ## Simple class for storing information related to a beneficiary profile, i.e. someone on benefits)
 # (basically sets a long JSON schema with some accessor functions and a connector to a yaml file)
+import os 
+import yaml 
+import subprocess
 
 class Beneficiary:
+
+    # TO-DO: Add class method to initialize from project yaml and "lock" file, i.e. cannot be overwritten
 
     default_schema = { 
 
@@ -131,6 +136,16 @@ class Beneficiary:
                         if config[term + str(i)] != [0]:
                             raise Exception(f"Invalid family member configuration ('{term}{i}' given but 'agePerson{i}' is < 18)")
 
+    @classmethod
+    def from_yaml(cls, file_path):
+        project_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        with open(file_path, 'r') as file:
+            config_data = yaml.safe_load(file)
+
+        return cls(project_name, **config_data)
+
+
 
     def __init__(self, project_name:str, **config): # pass valid key:values according to schema set in TEST.yaml 
 
@@ -190,11 +205,6 @@ class Beneficiary:
     def get_benefits(self) -> list: 
         """Summarize the benefits programs applied""" 
         
-        # benefits_programs = {
-        #     k:v for k,v in self._Profile.items() 
-        #     if 'APPLY' in k and v != False
-        # }
-
         benefits_programs = [
             k.lstrip('APPLY_') for k,v in self._Profile.items()
             if 'APPLY' in k and v != False
@@ -207,7 +217,25 @@ class Beneficiary:
         non_default = {k:v for k,v in self._Profile.items() if v != Beneficiary.default_schema[k]}
         return non_default
 
-    
+    def save_project(self, outdir='projects', overwrite=False):
+        if not os.path.exists(outdir): 
+            raise Exception(f'Check that {outdir} is in current directory.')
+        else: 
+            fp = os.path.join(outdir, self.project_name + '.yaml')
+            if os.path.isfile(fp) and not overwrite: 
+                raise Exception(f'{fp} exists and overwrite is {overwrite}')
+            else: 
+                with open(fp, 'w') as file: 
+                    yaml.dump(self.Profile, file)
+        return     
+
+    def run_applyBenefitsCalculator(self) -> None:
+        """Run the calculator R script for the project's YAML"""
+
+        command = ["Rscript", "applyBenefitsCalculator.R", self.project_name]
+        subprocess.run(command)
+
+
     @property
     def Profile(self):
         return self._Profile
@@ -215,7 +243,7 @@ class Beneficiary:
 
 
 
-    # 
+
 
 
 
