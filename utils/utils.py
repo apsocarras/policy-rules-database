@@ -299,6 +299,11 @@ def print_df(df):
     for line in df.to_csv(index=False).splitlines(): 
         print(line.replace(',',', '))
 
+# def create_ben_profile(): 
+#     return 
 
-def create_ben_profile(): 
-    return 
+def combine_dicts(*dicts):
+    combined_dict = {}
+    for d in dicts:
+        combined_dict.update(d)
+    return combined_dict
