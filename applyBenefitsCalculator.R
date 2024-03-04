@@ -38,7 +38,7 @@ PROJECT<-"TEST"
 ## 1. Settings----
 
 # Load inputs YAML file
-inputs <- read_yaml(paste0(current_directory,"/projects/",PROJECT,".yml"))
+inputs <- read_yaml(paste0(current_directory,"/projects/",PROJECT,".yaml"))
 
 
 # Global settings
