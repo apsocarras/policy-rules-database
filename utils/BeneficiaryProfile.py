@@ -164,7 +164,8 @@ class Beneficiary:
         self.locations = self._Profile['locations']
         self.married = self._Profile['married']
         self.project_name = project_name
-
+        
+        self.output_path = os.path.join('output', 'results_' + self.project_name + '.csv')
 
         ## Methods
         # save/update yaml file 
