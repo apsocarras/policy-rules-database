@@ -32,8 +32,24 @@ source(paste0(current_directory,"/functions/expense_functions.R"), local=TRUE) #
 source(paste0(current_directory,"/functions/BenefitsCalculator_functions.R"), local=TRUE) # Benefits Calculator functions
 
 # SPECIFY PROJECT----
-PROJECT<-"TEST"
+# PROJECT<-"TEST"
 #PROJECT<-"unit_test"
+
+# Get command line arguments
+args <- commandArgs(trailingOnly = TRUE)
+
+# Check if any arguments were provided
+if (length(args) > 0) {
+    # Use the first argument as the value for PROJECT
+    PROJECT <- args[1]
+} else {
+    # If no argument provided, use a default value
+    PROJECT <- "TEST"
+}
+
+cat(paste0('\n\n----------------------', PROJECT, '----------------------\n\n'))
+
+
 
 ## 1. Settings----
 
