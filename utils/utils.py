@@ -1,162 +1,145 @@
-from azure.storage.blob import BlobServiceClient, BlobSasPermissions, generate_blob_sas
 import os
 import datetime as dt 
 import matplotlib.pyplot as plt 
 import json
 import yaml
 import pandas as pd 
+import numpy as np
+from scipy.signal import argrelextrema
 
-class AzureBlobStorageManager:
-    def __init__(self, connection_str:str, container_name:str, download_dir="."):
-        
-        self.container_name = container_name
-        
-        self.blob_service_client = BlobServiceClient.from_connection_string(connection_str)
-        self.container_client = self.blob_service_client.get_container_client(container_name)
+### ------------------------------------------------------------------------------ ###
+### --- GENERAL UTILS  --- ###
 
-        # The default directory to which to download a blob.
-        self.download_dir = download_dir
+def print_df(df):
+    for line in df.to_csv(index=False).splitlines(): 
+        print(line.replace(',',', '))
 
-    def upload_blob(self, file_name:str,  blob_name=None, overwrite=False) -> None:
-        """Upload a local file to blob storage in Azure"""
+def combine_dicts(*dicts):
+    combined_dict = {}
+    for d in dicts:
+        combined_dict.update(d)
+    return combined_dict
 
-        # Default blob_name = local filename 
-        if blob_name is None:
-            blob_name = os.path.basename(file_name)
-        blob_client = self.container_client.get_blob_client(blob_name)
-        
-        try:
-            # Upload the blob
-            with open(file_name, "rb") as data:
-                blob_client.upload_blob(data, overwrite=overwrite)
-            print(f"Blob {blob_name} uploaded successfully.")
-        except Exception as e: # Do something with this exception block (e.g. add logging)
-            print(f"An error occurred: {str(e)}")
-
-    def list_blobs(self, name_only=True) -> list: 
-        """Wrapper to list blobs in the container"""
-        blob_list = self.container_client.list_blobs()
-        if name_only: 
-            return [blob.name for blob in blob_list]
-        else: 
-            return list(blob_list)
-
-    def download_blob(self, blob_name:str, download_path=None): 
-        """Download a blob from the container. Local download path defaults to blob_name"""
-
-        blob_client = self.container_client.get_blob_client(blob_name)
-
-        if download_path is None:
-            download_path = os.path.join(self.download_dir, os.path.basename(blob_name)) 
-        
-        with open(download_path, "wb") as file:
-            download_bytes = blob_client.download_blob().readall()
-            file.write(download_bytes)
-
-    def has_blob(self, file_name:str) -> bool: 
-        """Check if the container has a blob of the given name"""
-
-        return os.path.basename(file_name) in self.list_blobs(name_only=True)
-    
-    def get_blob_last_modified(self, blob_name:str):
-        """Get the last modified date of a blob in the storage container"""
-        # Create a blob client
-        blob_client =self.container_client.get_blob_client(blob_name)
-       
-        try:
-            # Get blob properties
-            blob_properties = blob_client.get_blob_properties()
-            # Retrieve and print last modified date
-            last_modified = blob_properties['last_modified']
-            return last_modified.date()
-           
-        except Exception as e: # Do something with this exception block (e.g. add logging)
-            print(f"An error occurred: {str(e)}")
-
-        
-    def get_blob_url(self, file_name:str, include_sas=False, expiry_hours=1) -> str:
-        """Get the url of a blob in the storage container""" 
-
-        blob_base = os.path.basename(file_name)
-        blob_client = self.container_client.get_blob_client(blob=blob_base)
-        
-        url = blob_client.url 
-        
-        # Generate SAS token (read only)
-        if include_sas: 
-            expiry_time = dt.datetime.utcnow() + dt.timedelta(hours=expiry_hours)  # Adjust the expiration time as needed
-            permissions = BlobSasPermissions(read=True)  # Adjust permissions as needed
-
-            sas_token = generate_blob_sas(
-            account_name=blob_client.account_name,
-            container_name=self.container_name,
-            blob_name=blob_base,
-            account_key=blob_client.credential.account_key,
-            permission=permissions,
-            expiry=expiry_time,
-            start=dt.datetime.utcnow(), 
-            protocol='https'
-            )
-
-            url += f"?{sas_token}"
-
-            print(blob_client.account_name)
-
-        return url 
-
-def get_hourly_wage(x):
+def get_hourly_wage(annual):
     # Assuming you work a 40 hour week, 52 weeks in a year 
-    return f"${(x/52)/40:.2f}"
+    return f"${(annual/52)/40:.2f}"
+
+def format_int_dollars(n:int) -> str: 
+    return '${:,.6}'.format(float(n)).rstrip('0').rstrip('.')
 
 
-def create_custom_ticks_labels() -> tuple:     
-    ## TO DO: let customize salary ranges 
-    ## Create custom ticks for yearly and hourly wages 
-    custom_ticks = list(range(30000, 100001, 10000)) 
-    hourly_wages = [get_hourly_wage(x) for x in custom_ticks]
+def find_derivative_rel_minima(x,y, non_negative=True): 
+    """Find rel minima (indices) of a derivative """
+    ## Derivative  
+    derivative = np.gradient(y,x)
+    derivative_rel_minima = argrelextrema(derivative, np.less)[0]
+    if non_negative:
+        derivative_rel_minima = derivative_rel_minima[derivative_rel_minima > 0] # non-negative
+    return derivative_rel_minima
 
-    custom_labels = [f"${x[0]:,}\n{x[1]}" for x in zip(custom_ticks, hourly_wages)]
-    return custom_ticks, custom_labels
+def find_zero_intercepts(ls:list):
+    """Get points (indices) of curve (iterable) which first intersect with x-axis (0) (i.e. previous value must be non-zero)""" 
+
+    zero_indices = []
+    on_zero = True  # treat first element in list as if we're already on zero (there's no previous point)
+    for n in range(len(ls)):
+        if ls[n] == 0:
+            if not on_zero: # i.e. we found a zero and we're not already on the axis 
+                zero_indices.append(n)
+                on_zero = True
+            else: 
+                continue
+        else: 
+            on_zero = False
+
+    return zero_indices
+
+### ------------------------------------------------------------------------------ ###
+### --- BENEFITS FUNCTIONS --- ###
+
+def filter_benefits(df, include_eitc=True): 
+    """Filter df to relevant benefits columns"""
+    df_benefits = df.loc[:, ((df != 0).any(axis=0) & (df == 0).any(axis=0))]\
+            .filter(regex='value') # Must have non-zero and zero values to potentially cause a cliff
+    if not include_eitc: 
+        df_benefits = df_benefits[[col for col in df_benefits.columns if 'eitc' not in col]]
+    return df_benefits
 
 
-def plot_ben_cliff(x, y, 
-                   label_curve, 
-                   label_x='Income (Annual & Hourly)', 
-                   label_y='Net Resources',
-                   title='Net Resources'): 
+def find_benefits_cliffs(df, derivative_rel_minima, mode='peak') -> dict: 
+    """Find benefits cliffs from zeros in benefits curves and the minima of the derivative of the income vs. net resources curve
+    
+    Args
+
+    df (dataframe): Dataframe with benefits columns recognized in filter_benefits()
+
+    mode (str): 'peak' (return index of peak of cliff) or 'valley' (return index of bottom of cliff)
+    
+    Returns 
+
+    cliffs (dict): {<benefits_column>:[<cliff-1>,...,<cliff-n>]}
+    
+    """
+
+    if mode == 'peak': 
+        offset = 1
+    elif mode == 'valley': 
+        offset = 0
+    else: 
+        raise Exception("'mode' must be one of 'peak' or 'valley'")
+ 
+    df_benefits = filter_benefits(df, include_eitc=False)
+    cliffs = {}
+
+    for col in df_benefits.columns: 
+        zeros = find_zero_intercepts(df_benefits[col].tolist())
+        col_cliffs = [x - offset for x in zeros if any(x in range(e,e+2) for e in derivative_rel_minima)] # pd.Interval(e-1,e+1, closed='both') -- since derivative curve is discrete I don't think this is need
+        if len(col_cliffs) > 0:
+            cliffs[col] = col_cliffs
+
+    return cliffs 
 
 
-    ## Create figure, axis, and plot data 
-    fig, ax = plt.subplots()
-    ax.plot(x,y, label=label_curve)
+### ------------------------------------------------------------------------------ ###
+## --- DEPRECATED: Used for illustration in identify-cliffs-plotly.ipynb only ---  ##
 
-    ## Add break even line 
-    plt.axhline(y=0, color='r', linestyle='--', label='Break Even')
+def find_zeros(df,include_first=False) -> list: 
+    """Find the first index of zero in each column of a dataframe"""
+    if include_first: 
+        zeros = [{col:df[col].to_list().index(0)} for col in df.columns]
+    else: 
+        zeros = []
+        for col in df.columns: 
+            idx_first_nonzero = -1
+            for n,v in enumerate(df[col].values): 
+                if v > 0:
+                    idx_first_nonzero = n
+                    break      
+            try: 
+                zero = df[col][idx_first_nonzero:].to_list().index(0)
+            except ValueError: 
+                continue # no zero in rest of the column
+            if zero != -1: 
+                zeros.append({col:zero})
+    zeros.sort(key=lambda x: list(x.values())[0])
+    return zeros 
 
-    ## Add legend 
-    plt.legend()
 
-    ## Create custom ticks for yearly and hourly wages 
-    # read from the current config file 
-    custom_ticks = list(range(30000, 100001, 10000)) 
-    def get_hourly_wage(x):
-        # Assuming you work a 40 hour week, 52 weeks in a year 
-        return f"${(x/52)/40:.2f}"
-    hourly_wages = [get_hourly_wage(x) for x in custom_ticks]
+# def find_benefits_cliffs(zeros, derivative_rel_minima) -> list: 
+#     """Find benefits cliffs points from zeros in benefits curves and the derivative minima"""
 
-    custom_labels = [f"${x[0]:,}\n{x[1]}" for x in zip(custom_ticks, hourly_wages)]
+#     cliffs = [{"benefit":list(z.keys())[0],
+#                 "valley":list(z.values())[0], 
+#                 "peak":list(z.values())[0] - 1}
+#             for z in zeros 
+#             if any(list(z.values())[0] in pd.Interval(e-1,e+1, closed='both')
+#                 for e in derivative_rel_minima)]
+    
+#     return cliffs 
 
-    ## Set custom ticks and labels for x axis 
-    ax.set_xticks(custom_ticks)
-    ax.set_xticklabels(custom_labels)
 
-    ## Set axis labels and title
-    ax.set_xlabel(label_x)
-    ax.set_ylabel(label_y)
-    ax.set_title(title)
 
-    ## Show plot 
-    # plt.show()
+## --- DEPRECATED: Prior version of repo before I created the BeneficiaryProfile Class ---  ##
 
 def print_ben_sum(ben_dict:dict, indent=4):
     ## Print summarized version of the profile for confirmation  
@@ -289,21 +272,8 @@ def save_config(ben_profile_dict:dict, project_name:str):
     print(f'Saved to {os.path.join("projects", project_name + ".yaml")}')
     print(f'Project name: {project_name}')
 
-
 def read_output(project_name:str) -> pd.DataFrame:
     """Read output of R script based on project (YAML config) name"""
     return pd.read_csv(os.path.join('output', f'results_{project_name}.csv'))
 
 
-def print_df(df):
-    for line in df.to_csv(index=False).splitlines(): 
-        print(line.replace(',',', '))
-
-# def create_ben_profile(): 
-#     return 
-
-def combine_dicts(*dicts):
-    combined_dict = {}
-    for d in dicts:
-        combined_dict.update(d)
-    return combined_dict

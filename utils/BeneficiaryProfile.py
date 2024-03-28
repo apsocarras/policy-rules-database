@@ -236,7 +236,7 @@ class Beneficiary:
         command = ["Rscript", "applyBenefitsCalculator.R", self.project_name]
         subprocess.run(command)
 
-
+         
     @property
     def Profile(self):
         return self._Profile
