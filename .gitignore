@@ -19,7 +19,8 @@ data/*.xlsx
 data/*.csv
 data/*.json
 
-
+py-dash-scraping/*
+!py-dash-scraping/.gitkeep
 ## Python Defaults ## 
 
 # Byte-compiled / optimized / DLL files
