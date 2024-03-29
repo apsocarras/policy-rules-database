@@ -10,7 +10,9 @@ Format_CPSASEC.r
 projects/
 output/
 scrap/
-
+data/*
+!data/.gitkeep
+!data/*/
 
 
 ## Python Defaults ## 
