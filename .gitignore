@@ -12,7 +12,7 @@ output/
 scrap/
 
 data/*
-!data/.gitkeep
+!data/*.gitkeep
 !data/*/
 data/*.dta
 data/*.xlsx
