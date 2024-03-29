@@ -1,0 +1,10 @@
+jupyterlab 
+pandas 
+matplotlib
+seaborn
+brokenaxes
+azure-storage-blob
+scipy
+openpyxl
+plotly
+pyreadr
